@@ -427,13 +427,21 @@ client_main(struct event_base *base, int argc, char **argv, uint64_t flags,
 			printf("%%exit\n");
 		fflush(stdout);
 		if (client_flags & CLIENT_CONTROL_WAITEXIT) {
-			setvbuf(stdin, NULL, _IOLBF, 0);
-			for (;;) {
-				linelen = getline(&line, &linesize, stdin);
-				if (linelen <= 1)
-					break;
+			fd_set selectset;
+			struct timeval timeout = {5,0};
+			FD_ZERO(&selectset);
+			FD_SET(0, &selectset);
+			if ( select(1, &selectset, NULL, NULL, &timeout) ) {
+				setvbuf(stdin, NULL, _IOLBF, 0);
+				for (;;) {
+					linelen = getline(&line, &linesize, stdin);
+					if (linelen <= 1)
+						break;
+				}
+				free(line);
+			} else {
+				fprintf(stderr, "Error waiting for empty line on exit\n");
 			}
-			free(line);
 		}
 		if (client_flags & CLIENT_CONTROLCONTROL) {
 			printf("\033\\");
